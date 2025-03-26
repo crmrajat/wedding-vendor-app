@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { FileText, Plus, Upload } from "lucide-react"
+import { FileText, Plus, Trash2, Upload } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { AppShell } from "@/components/layout/app-shell"
 import { contractSchema, appointmentSchema } from "@/lib/validations"
 import { FormDatePicker } from "@/components/form/date-picker"
@@ -110,11 +120,10 @@ export default function ContractsPage() {
   const [showAddAppointment, setShowAddAppointment] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
   const [formSubmitted, setFormSubmitted] = useState(false)
-
-  // Date states for the calendar
-  const [signedDate, setSignedDate] = useState<Date | undefined>(new Date())
-  const [expirationDate, setExpirationDate] = useState<Date | undefined>(undefined)
-  const [appointmentDate, setAppointmentDate] = useState<Date | undefined>(new Date())
+  const [contractToDelete, setContractToDelete] = useState(null)
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false)
+  const [appointmentToDelete, setAppointmentToDelete] = useState(null)
+  const [showDeleteAppointmentAlert, setShowDeleteAppointmentAlert] = useState(false)
 
   // Contract form
   const contractForm = useForm({
@@ -142,13 +151,6 @@ export default function ContractsPage() {
     mode: "onChange",
   })
 
-  // Reset form submitted state when dialog closes
-  useEffect(() => {
-    if (!showAddContract) {
-      setFormSubmitted(false)
-    }
-  }, [showAddContract])
-
   const onContractSubmit = (data) => {
     setFormSubmitted(true)
 
@@ -171,8 +173,6 @@ export default function ContractsPage() {
       expirationDate: "",
       fileName: "",
     })
-    setSignedDate(new Date())
-    setExpirationDate(undefined)
 
     toast.success("Contract added", {
       description: `Contract for ${data.vendor} has been added successfully.`,
@@ -202,10 +202,83 @@ export default function ContractsPage() {
       time: "10:00",
       notes: "",
     })
-    setAppointmentDate(new Date())
 
     toast.success("Appointment added", {
       description: `Appointment with ${data.vendor} has been scheduled.`,
+    })
+  }
+
+  // Delete contract functionality
+  const confirmDeleteContract = (contract) => {
+    setContractToDelete(contract)
+    setShowDeleteAlert(true)
+  }
+
+  const deleteContract = () => {
+    if (!contractToDelete) return
+
+    // Store the deleted contract for potential undo
+    const contractToDeleteCopy = { ...contractToDelete }
+
+    // Remove from current contracts
+    const newContracts = contracts.filter((contract) => contract.id !== contractToDelete.id)
+    setContracts(newContracts)
+
+    setShowDeleteAlert(false)
+    setContractToDelete(null)
+
+    // Show toast with undo option
+    toast.error("Contract deleted", {
+      description: `Contract for ${contractToDeleteCopy.vendor} has been removed.`,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          // Directly restore the contract
+          const updatedContracts = [...newContracts, contractToDeleteCopy]
+          setContracts(updatedContracts)
+
+          toast.success("Contract restored", {
+            description: `Contract for ${contractToDeleteCopy.vendor} has been restored.`,
+          })
+        },
+      },
+    })
+  }
+
+  // Delete appointment functionality
+  const confirmDeleteAppointment = (appointment) => {
+    setAppointmentToDelete(appointment)
+    setShowDeleteAppointmentAlert(true)
+  }
+
+  const deleteAppointment = () => {
+    if (!appointmentToDelete) return
+
+    // Store the deleted appointment for potential undo
+    const appointmentToDeleteCopy = { ...appointmentToDelete }
+
+    // Remove from current appointments
+    const newAppointments = appointments.filter((appointment) => appointment.id !== appointmentToDelete.id)
+    setAppointments(newAppointments)
+
+    setShowDeleteAppointmentAlert(false)
+    setAppointmentToDelete(null)
+
+    // Show toast with undo option
+    toast.error("Appointment deleted", {
+      description: `Appointment with ${appointmentToDeleteCopy.vendor} has been removed.`,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          // Directly restore the appointment
+          const updatedAppointments = [...newAppointments, appointmentToDeleteCopy]
+          setAppointments(updatedAppointments)
+
+          toast.success("Appointment restored", {
+            description: `Appointment with ${appointmentToDeleteCopy.vendor} has been restored.`,
+          })
+        },
+      },
     })
   }
 
@@ -327,11 +400,12 @@ export default function ContractsPage() {
                           <TableHead className="hidden md:table-cell">Signed Date</TableHead>
                           <TableHead>Expiration Date</TableHead>
                           <TableHead>Document</TableHead>
+                          <TableHead className="w-[80px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {contracts.map((contract) => (
-                          <TableRow key={contract.id}>
+                          <TableRow key={contract.id} className="group">
                             <TableCell className="font-medium">{contract.vendor}</TableCell>
                             <TableCell className="hidden md:table-cell">{contract.type}</TableCell>
                             <TableCell className="hidden md:table-cell">
@@ -342,6 +416,17 @@ export default function ContractsPage() {
                               <Button variant="ghost" size="sm" className="gap-1">
                                 <FileText className="h-4 w-4" />
                                 <span className="hidden sm:inline">{contract.fileName}</span>
+                              </Button>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => confirmDeleteContract(contract)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                                <span className="sr-only">Delete</span>
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -371,17 +456,29 @@ export default function ContractsPage() {
                           <TableHead>Date</TableHead>
                           <TableHead>Time</TableHead>
                           <TableHead className="hidden md:table-cell">Notes</TableHead>
+                          <TableHead className="w-[80px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {sortedAppointments.map((appointment) => (
-                          <TableRow key={appointment.id}>
+                          <TableRow key={appointment.id} className="group">
                             <TableCell className="font-medium">{appointment.vendor}</TableCell>
                             <TableCell className="hidden md:table-cell">{appointment.type}</TableCell>
                             <TableCell>{formatDisplayDate(appointment.date)}</TableCell>
                             <TableCell>{appointment.time}</TableCell>
                             <TableCell className="hidden md:table-cell max-w-[200px] truncate">
                               {appointment.notes}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => confirmDeleteAppointment(appointment)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                                <span className="sr-only">Delete</span>
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -409,8 +506,6 @@ export default function ContractsPage() {
               })
               setSelectedFile(null)
               setFormSubmitted(false)
-              setSignedDate(new Date())
-              setExpirationDate(undefined)
             }
           }}
         >
@@ -522,8 +617,6 @@ export default function ContractsPage() {
                       setShowAddContract(false)
                       contractForm.reset()
                       setSelectedFile(null)
-                      setSignedDate(new Date())
-                      setExpirationDate(undefined)
                     }}
                   >
                     Cancel
@@ -554,7 +647,6 @@ export default function ContractsPage() {
                 time: "10:00",
                 notes: "",
               })
-              setAppointmentDate(new Date())
             }
           }}
         >
@@ -635,7 +727,6 @@ export default function ContractsPage() {
                     onClick={() => {
                       setShowAddAppointment(false)
                       appointmentForm.reset()
-                      setAppointmentDate(new Date())
                     }}
                   >
                     Cancel
@@ -648,6 +739,50 @@ export default function ContractsPage() {
             </Form>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Contract Alert Dialog */}
+        <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove the contract for {contractToDelete?.vendor}. You can undo this action afterwards.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+              <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={deleteContract}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Appointment Alert Dialog */}
+        <AlertDialog open={showDeleteAppointmentAlert} onOpenChange={setShowDeleteAppointmentAlert}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove the appointment with {appointmentToDelete?.vendor} on{" "}
+                {appointmentToDelete ? formatDisplayDate(appointmentToDelete.date) : ""}. You can undo this action
+                afterwards.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+              <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={deleteAppointment}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AppShell>
   )

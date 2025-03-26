@@ -1,6 +1,4 @@
 "use client"
-
-import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import { CalendarIcon, Clock } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
@@ -27,32 +25,13 @@ export function FormDateTimePicker({
   className,
   showTimePicker = false,
 }: FormDateTimePickerProps) {
-  const [date, setDate] = useState<Date | undefined>(new Date())
-  const [fieldValue, setFieldValue] = useState<string | undefined>(undefined)
-  const [innerValue, setInnerValue] = useState<string | undefined>(undefined)
-
-  useEffect(() => {
-    if (fieldValue && typeof fieldValue === "string") {
-      setDate(new Date(fieldValue))
-    }
-  }, [fieldValue])
-
-  useEffect(() => {
-    if (innerValue !== fieldValue) {
-      setFieldValue(innerValue)
-    }
-  }, [innerValue, fieldValue])
-
   return (
     <FormField
       control={control}
       name={name}
       render={({ field }) => {
-        useEffect(() => {
-          if (field.value !== innerValue) {
-            setInnerValue(field.value)
-          }
-        }, [field.value, innerValue])
+        // Convert the string date from the form to a Date object for the Calendar
+        const selectedDate = field.value ? new Date(field.value) : undefined
 
         return (
           <FormItem className={className}>
@@ -79,25 +58,49 @@ export function FormDateTimePicker({
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={date}
-                  onSelect={(newDate) => {
-                    if (newDate) {
-                      const currentDate = date || new Date()
-                      newDate.setHours(currentDate.getHours())
-                      newDate.setMinutes(currentDate.getMinutes())
+                  selected={selectedDate}
+                  onSelect={(date) => {
+                    if (date) {
+                      // Preserve the time from the existing date or use current time
+                      const currentTime = selectedDate || new Date()
+
+                      // Create a new date with the correct day, preserving time
+                      const newDate = new Date(date)
+                      newDate.setHours(currentTime.getHours())
+                      newDate.setMinutes(currentTime.getMinutes())
                       newDate.setSeconds(0)
+
+                      // Create an ISO string but ensure we're using the local date
+                      const year = newDate.getFullYear()
+                      const month = String(newDate.getMonth() + 1).padStart(2, "0")
+                      const day = String(newDate.getDate()).padStart(2, "0")
+                      const hours = String(newDate.getHours()).padStart(2, "0")
+                      const minutes = String(newDate.getMinutes()).padStart(2, "0")
+
+                      // Format as ISO-like string but preserving the actual selected date
+                      const dateTimeString = `${year}-${month}-${day}T${hours}:${minutes}:00.000Z`
+                      field.onChange(dateTimeString)
+                    } else {
+                      field.onChange("")
                     }
-                    setDate(newDate)
-                    field.onChange(newDate ? newDate.toISOString() : "")
                   }}
                   initialFocus
+                  disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                 />
-                {showTimePicker && date && (
+                {showTimePicker && selectedDate && (
                   <TimePicker
-                    date={date}
-                    setDate={(newDate) => {
-                      setDate(newDate)
-                      field.onChange(newDate.toISOString())
+                    date={selectedDate}
+                    setDate={(date) => {
+                      // Ensure we preserve the correct day when updating time
+                      const year = date.getFullYear()
+                      const month = String(date.getMonth() + 1).padStart(2, "0")
+                      const day = String(date.getDate()).padStart(2, "0")
+                      const hours = String(date.getHours()).padStart(2, "0")
+                      const minutes = String(date.getMinutes()).padStart(2, "0")
+
+                      // Format as ISO-like string but preserving the actual selected date
+                      const dateTimeString = `${year}-${month}-${day}T${hours}:${minutes}:00.000Z`
+                      field.onChange(dateTimeString)
                     }}
                   />
                 )}
