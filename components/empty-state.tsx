@@ -1,29 +1,21 @@
-"use client"
-
-import type { ReactNode } from "react"
-import { Button } from "@/components/ui/button"
+import type React from "react"
+import { cn } from "@/lib/utils"
 
 interface EmptyStateProps {
-  icon: ReactNode
+  icon?: React.ReactNode
   title: string
   description?: string
-  actionLabel?: string
-  actionIcon?: ReactNode
-  onAction?: () => void
+  action?: React.ReactNode
+  className?: string
 }
 
-export function EmptyState({ icon, title, description, actionLabel, actionIcon, onAction }: EmptyStateProps) {
+export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
   return (
-    <div className="flex h-full flex-col items-center justify-center text-center p-6">
-      <div className="rounded-full bg-muted p-3 mb-4">{icon}</div>
-      <h3 className="text-lg font-medium mb-2">{title}</h3>
-      {description && <p className="text-muted-foreground mb-6 max-w-md">{description}</p>}
-      {actionLabel && onAction && (
-        <Button onClick={onAction}>
-          {actionIcon && <span className="mr-2">{actionIcon}</span>}
-          {actionLabel}
-        </Button>
-      )}
+    <div className={cn("flex flex-col items-center justify-center p-2 sm:p-4 md:p-8 text-center", className)}>
+      {icon && <div className="mb-2 sm:mb-4">{icon}</div>}
+      <h3 className="mt-2 sm:mt-4 text-lg font-medium">{title}</h3>
+      {description && <p className="mt-1 sm:mt-2 text-sm text-muted-foreground">{description}</p>}
+      {action && <div className="mt-2 sm:mt-4">{action}</div>}
     </div>
   )
 }

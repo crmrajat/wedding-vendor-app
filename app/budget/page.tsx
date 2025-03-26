@@ -5,7 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { DollarSign, Edit, Plus, Save, Trash2 } from "lucide-react"
 import { toast } from "sonner"
-import { format } from "date-fns"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,10 +13,8 @@ import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { AppShell } from "@/components/layout/app-shell"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { DatePicker } from "@/components/ui/date-picker"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +26,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { expenseSchema } from "@/lib/validations"
+import { FormDatePicker } from "@/components/form/date-picker"
+import { formatDisplayDate } from "@/lib/date-utils"
 
 // Sample budget data
 const initialBudget = {
@@ -156,13 +155,6 @@ export default function BudgetPage() {
     },
     mode: "onChange",
   })
-
-  // Update form values when date changes
-  useEffect(() => {
-    if (expenseDate) {
-      form.setValue("date", format(expenseDate, "yyyy-MM-dd"))
-    }
-  }, [expenseDate, form])
 
   // Function to recalculate category percentages based on total budget
   const recalculateCategoryPercentages = (newTotal, newCategoryBudgets = null) => {
@@ -357,96 +349,94 @@ export default function BudgetPage() {
   }
 
   return (
-    <AppShell>
-      <div className="space-y-8">
-        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Budget Management</h1>
-            <p className="text-muted-foreground mt-1">Track and manage your wedding budget</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setEditingCategoryBudgets(true)} className="w-full sm:w-auto">
-              <Edit className="mr-2 h-4 w-4" /> Adjust Categories
-            </Button>
-            <Button onClick={() => setShowAddExpense(true)} className="w-full sm:w-auto">
-              <Plus className="mr-2 h-4 w-4" /> Add Expense
-            </Button>
-          </div>
+    <div className="space-y-4 sm:space-y-6 md:space-y-8">
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Budget Management</h1>
+          <p className="text-muted-foreground mt-1">Track and manage your wedding budget</p>
         </div>
-
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <Card className="bg-card hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Budget</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="text-2xl font-bold">${budget.total.toLocaleString()}</div>
-            </CardContent>
-          </Card>
-          <Card className="bg-card hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Spent</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="text-2xl font-bold">${budget.spent.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">
-                {Math.round((budget.spent / budget.total) * 100)}% of total budget
-              </p>
-              <Progress value={(budget.spent / budget.total) * 100} className="mt-2" />
-            </CardContent>
-          </Card>
-          <Card className="bg-card hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Remaining</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="text-2xl font-bold">${budget.remaining.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">
-                {Math.round((budget.remaining / budget.total) * 100)}% of total budget
-              </p>
-            </CardContent>
-          </Card>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setEditingCategoryBudgets(true)} className="w-full sm:w-auto">
+            <Edit className="mr-2 h-4 w-4" /> Adjust Categories
+          </Button>
+          <Button onClick={() => setShowAddExpense(true)} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" /> Add Expense
+          </Button>
         </div>
+      </div>
 
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card className="bg-card hover:shadow-md transition-shadow">
-          <CardHeader className="pb-3">
-            <CardTitle>Budget Breakdown</CardTitle>
-            <CardDescription>Budget allocation by category</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Budget</CardTitle>
           </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[400px] pr-4">
-              <div className="space-y-6">
-                {budget.categories.map((category) => (
-                  <div key={category.id}>
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium leading-none">{category.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          ${category.spent.toLocaleString()} of ${category.budget.toLocaleString()} (
-                          {category.percentage}% of total)
-                        </p>
-                      </div>
-                      <p className="text-sm font-medium">
-                        {Math.round((category.spent / category.budget) * 100)}% used
-                      </p>
-                    </div>
-                    <Progress value={(category.spent / category.budget) * 100} className="mt-2" />
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
+          <CardContent className="pt-2 sm:pt-4">
+            <div className="text-2xl font-bold">${budget.total.toLocaleString()}</div>
           </CardContent>
         </Card>
-
         <Card className="bg-card hover:shadow-md transition-shadow">
-          <CardHeader className="pb-3">
-            <CardTitle>Recent Expenses</CardTitle>
-            <CardDescription>Track all your wedding expenses</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Spent</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="p-0">
-            <ScrollArea className="h-[400px]">
+          <CardContent className="pt-2 sm:pt-4">
+            <div className="text-2xl font-bold">${budget.spent.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              {Math.round((budget.spent / budget.total) * 100)}% of total budget
+            </p>
+            <Progress value={(budget.spent / budget.total) * 100} className="mt-2" />
+          </CardContent>
+        </Card>
+        <Card className="bg-card hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Remaining</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="pt-2 sm:pt-4">
+            <div className="text-2xl font-bold">${budget.remaining.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              {Math.round((budget.remaining / budget.total) * 100)}% of total budget
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="bg-card hover:shadow-md transition-shadow">
+        <CardHeader className="pb-3">
+          <CardTitle>Budget Breakdown</CardTitle>
+          <CardDescription>Budget allocation by category</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-[400px] pr-4">
+            <div className="space-y-6">
+              {budget.categories.map((category) => (
+                <div key={category.id}>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium leading-none">{category.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        ${category.spent.toLocaleString()} of ${category.budget.toLocaleString()} ({category.percentage}
+                        % of total)
+                      </p>
+                    </div>
+                    <p className="text-sm font-medium">{Math.round((category.spent / category.budget) * 100)}% used</p>
+                  </div>
+                  <Progress value={(category.spent / category.budget) * 100} className="mt-2" />
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card hover:shadow-md transition-shadow">
+        <CardHeader className="pb-3">
+          <CardTitle>Recent Expenses</CardTitle>
+          <CardDescription>Track all your wedding expenses</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <ScrollArea className="h-[500px]">
+            <div className="min-w-[800px]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -462,7 +452,7 @@ export default function BudgetPage() {
                   {expenses.length > 0 ? (
                     expenses.map((expense) => (
                       <TableRow key={expense.id}>
-                        <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
+                        <TableCell>{formatDisplayDate(expense.date)}</TableCell>
                         <TableCell>{expense.category}</TableCell>
                         <TableCell className="hidden md:table-cell">{expense.vendor}</TableCell>
                         <TableCell>{expense.description}</TableCell>
@@ -484,279 +474,270 @@ export default function BudgetPage() {
                   )}
                 </TableBody>
               </Table>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        {/* Edit Total Budget Dialog */}
-        <Dialog
-          open={editingTotalBudget}
-          onOpenChange={(open) => {
-            setEditingTotalBudget(open)
-            if (!open) {
-              // Reset the input when dialog closes without saving
-              setNewTotalBudget(budget.total.toString())
-            }
-          }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Total Budget</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Total Budget Amount
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
-                    type="number"
-                    value={newTotalBudget}
-                    onChange={(e) => setNewTotalBudget(e.target.value)}
-                    className="pl-7"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  This will proportionally adjust all category budgets based on their current percentages.
-                </p>
-              </div>
             </div>
-            <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
-              <Button
-                variant="outline"
-                className="w-full sm:w-auto"
-                onClick={() => {
-                  setEditingTotalBudget(false)
-                  setNewTotalBudget(budget.total.toString())
-                }}
-              >
-                Cancel
-              </Button>
-              <Button onClick={updateTotalBudget} className="w-full sm:w-auto">
-                <Save className="mr-2 h-4 w-4" /> Save
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </ScrollArea>
+        </CardContent>
+      </Card>
 
-        {/* Edit Category Budgets Dialog */}
-        <Dialog
-          open={editingCategoryBudgets}
-          onOpenChange={(open) => {
-            setEditingCategoryBudgets(open)
-            if (!open) {
-              // Reset category budgets when dialog closes without saving
-              const resetCategoryBudgets = {}
-              budget.categories.forEach((category) => {
-                resetCategoryBudgets[category.id] = category.budget
-              })
-              setCategoryBudgets(resetCategoryBudgets)
-            }
-          }}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Adjust Category Budgets</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <ScrollArea className="h-[300px] pr-4">
-                {budget.categories.map((category) => (
-                  <div key={category.id} className="mb-4">
-                    <label className="text-sm font-medium leading-none mb-2 block">{category.name}</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                      <Input
-                        type="number"
-                        value={categoryBudgets[category.id] || category.budget}
-                        onChange={(e) => handleCategoryBudgetChange(category.id, e.target.value)}
-                        className="pl-7"
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Current: ${category.budget.toLocaleString()} ({category.percentage}% of total)
-                    </p>
+      {/* Edit Total Budget Dialog */}
+      <Dialog
+        open={editingTotalBudget}
+        onOpenChange={(open) => {
+          setEditingTotalBudget(open)
+          if (!open) {
+            // Reset the input when dialog closes without saving
+            setNewTotalBudget(budget.total.toString())
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Total Budget</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Total Budget Amount
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input
+                  type="number"
+                  value={newTotalBudget}
+                  onChange={(e) => setNewTotalBudget(e.target.value)}
+                  className="pl-7"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                This will proportionally adjust all category budgets based on their current percentages.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => {
+                setEditingTotalBudget(false)
+                setNewTotalBudget(budget.total.toString())
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={updateTotalBudget} className="w-full sm:w-auto">
+              <Save className="mr-2 h-4 w-4" /> Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Category Budgets Dialog */}
+      <Dialog
+        open={editingCategoryBudgets}
+        onOpenChange={(open) => {
+          setEditingCategoryBudgets(open)
+          if (!open) {
+            // Reset category budgets when dialog closes without saving
+            const resetCategoryBudgets = {}
+            budget.categories.forEach((category) => {
+              resetCategoryBudgets[category.id] = category.budget
+            })
+            setCategoryBudgets(resetCategoryBudgets)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adjust Category Budgets</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <ScrollArea className="h-[300px] pr-4">
+              {budget.categories.map((category) => (
+                <div key={category.id} className="mb-4">
+                  <label className="text-sm font-medium leading-none mb-2 block">{category.name}</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                    <Input
+                      type="number"
+                      value={categoryBudgets[category.id] || category.budget}
+                      onChange={(e) => handleCategoryBudgetChange(category.id, e.target.value)}
+                      className="pl-7"
+                    />
                   </div>
-                ))}
-              </ScrollArea>
-              <div className="pt-2 border-t">
-                <p className="text-sm font-medium">
-                  New Total: $
-                  {Object.values(categoryBudgets)
-                    .reduce((sum, value) => sum + Number(value || 0), 0)
-                    .toLocaleString()}
-                </p>
-                <p className="text-xs text-muted-foreground">Original Total: ${budget.total.toLocaleString()}</p>
-              </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Current: ${category.budget.toLocaleString()} ({category.percentage}% of total)
+                  </p>
+                </div>
+              ))}
+            </ScrollArea>
+            <div className="pt-2 border-t">
+              <p className="text-sm font-medium">
+                New Total: $
+                {Object.values(categoryBudgets)
+                  .reduce((sum, value) => sum + Number(value || 0), 0)
+                  .toLocaleString()}
+              </p>
+              <p className="text-xs text-muted-foreground">Original Total: ${budget.total.toLocaleString()}</p>
             </div>
-            <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
-              <Button variant="outline" onClick={() => setEditingCategoryBudgets(false)} className="w-full sm:w-auto">
-                Cancel
-              </Button>
-              <Button onClick={updateCategoryBudgets} className="w-full sm:w-auto">
-                <Save className="mr-2 h-4 w-4" /> Save Changes
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </div>
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setEditingCategoryBudgets(false)} className="w-full sm:w-auto">
+              Cancel
+            </Button>
+            <Button onClick={updateCategoryBudgets} className="w-full sm:w-auto">
+              <Save className="mr-2 h-4 w-4" /> Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        {/* Add Expense Dialog */}
-        <Dialog
-          open={showAddExpense}
-          onOpenChange={(open) => {
-            setShowAddExpense(open)
-            if (!open) {
-              form.reset({
-                category: "",
-                vendor: "",
-                description: "",
-                amount: "",
-                date: new Date().toISOString().split("T")[0],
-              })
-              setExpenseDate(new Date())
-            }
-          }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Expense</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="category"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Category</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select category" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {budget.categories.map((category) => (
-                            <SelectItem key={category.id} value={category.name}>
-                              {category.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="vendor"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Vendor</FormLabel>
+      {/* Add Expense Dialog */}
+      <Dialog
+        open={showAddExpense}
+        onOpenChange={(open) => {
+          setShowAddExpense(open)
+          if (!open) {
+            form.reset({
+              category: "",
+              vendor: "",
+              description: "",
+              amount: "",
+              date: new Date().toISOString().split("T")[0],
+            })
+            setExpenseDate(new Date())
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Expense</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <Input placeholder="Enter vendor name" {...field} />
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      <SelectContent>
+                        {budget.categories.map((category) => (
+                          <SelectItem key={category.id} value={category.name}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter description" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <FormField
+                control={form.control}
+                name="vendor"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Vendor</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter vendor name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <FormField
-                  control={form.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Amount ($)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="Enter amount" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter description" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <FormField
-                  control={form.control}
-                  name="date"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Date</FormLabel>
-                      <DatePicker date={expenseDate} setDate={setExpenseDate} placeholder="Select expense date" />
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Amount ($)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="Enter amount" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 pt-4">
-                  <Button
-                    variant="outline"
-                    type="button"
-                    className="w-full sm:w-auto"
-                    onClick={() => {
-                      setShowAddExpense(false)
-                      form.reset()
-                      setExpenseDate(new Date())
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="w-full sm:w-auto">
-                    Add Expense
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+              {/* Date Field */}
+              <FormDatePicker name="date" control={form.control} label="Date" placeholder="Select expense date" />
 
-        {/* Delete Expense Alert Dialog */}
-        {showDeleteAlert && expenseToDelete && (
-          <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will remove the expense "{expenseToDelete.description}" for $
-                  {expenseToDelete.amount.toLocaleString()}. This action can be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
-                <AlertDialogCancel
+              <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  type="button"
                   className="w-full sm:w-auto"
                   onClick={() => {
-                    setShowDeleteAlert(false)
-                    setExpenseToDelete(null)
+                    setShowAddExpense(false)
+                    form.reset()
+                    setExpenseDate(new Date())
                   }}
                 >
                   Cancel
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={deleteExpense}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
-      </div>
-    </AppShell>
+                </Button>
+                <Button type="submit" className="w-full sm:w-auto">
+                  Add Expense
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Expense Alert Dialog */}
+      {showDeleteAlert && expenseToDelete && (
+        <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove the expense "{expenseToDelete.description}" for $
+                {expenseToDelete.amount.toLocaleString()}. This action can be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+              <AlertDialogCancel
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  setShowDeleteAlert(false)
+                  setExpenseToDelete(null)
+                }}
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={deleteExpense}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </div>
   )
 }
 

@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { AppShell } from "@/components/layout/app-shell"
+import { EmptyState } from "@/components/empty-state"
 import { vendorSchema } from "@/lib/validations"
 
 // Sample vendor data
@@ -118,6 +119,7 @@ export default function VendorsPage() {
       description: "",
       notes: "",
     },
+    mode: "onSubmit",
   })
 
   const filteredVendors = vendors.filter(
@@ -130,16 +132,33 @@ export default function VendorsPage() {
 
   const toggleFavorite = (e, id) => {
     e.stopPropagation()
-    setVendors(vendors.map((vendor) => (vendor.id === id ? { ...vendor, isFavorite: !vendor.isFavorite } : vendor)))
+    const updatedVendors = vendors.map((vendor) =>
+      vendor.id === id ? { ...vendor, isFavorite: !vendor.isFavorite } : vendor,
+    )
+    setVendors(updatedVendors)
+
+    const vendor = vendors.find((v) => v.id === id)
+    if (vendor) {
+      const action = !vendor.isFavorite ? "added to" : "removed from"
+      toast.success(`${vendor.name} ${action} favorites`)
+    }
   }
 
   const updateRating = (id, newRating) => {
     setVendors(vendors.map((vendor) => (vendor.id === id ? { ...vendor, rating: newRating } : vendor)))
+
+    const vendor = vendors.find((v) => v.id === id)
+    if (vendor) {
+      toast.success(`Rating updated for ${vendor.name}`)
+    }
   }
 
   const saveNote = () => {
     if (selectedVendor && vendorNote) {
-      setVendors(vendors.map((vendor) => (vendor.id === selectedVendor.id ? { ...vendor, notes: vendorNote } : vendor)))
+      const updatedVendors = vendors.map((vendor) =>
+        vendor.id === selectedVendor.id ? { ...vendor, notes: vendorNote } : vendor,
+      )
+      setVendors(updatedVendors)
       setSelectedVendor(null)
       setVendorNote("")
 
@@ -184,19 +203,13 @@ export default function VendorsPage() {
     }
   }
 
-  const handleClickOutside = (e) => {
-    if (e.target === e.currentTarget) {
-      setViewingVendor(null)
-    }
-  }
-
   return (
     <AppShell>
       <main className="flex-1">
-        <div className="container py-8">
-          <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div className="container px-2 sm:px-4 py-3 sm:py-4 md:py-6">
+          <div className="mb-6 sm:mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Vendor Management</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Vendor Management</h1>
               <p className="text-muted-foreground">Manage and organize your wedding vendors</p>
             </div>
             <div className="flex flex-col sm:flex-row w-full items-center gap-2 md:w-auto">
@@ -211,7 +224,7 @@ export default function VendorsPage() {
                 />
               </div>
               <Button onClick={() => setShowAddVendor(true)} className="w-full sm:w-auto">
-                Add Vendor
+                <Plus className="mr-2 h-4 w-4" /> Add Vendor
               </Button>
             </div>
           </div>
@@ -222,91 +235,9 @@ export default function VendorsPage() {
               <TabsTrigger value="favorites">Favorites</TabsTrigger>
             </TabsList>
             <TabsContent value="all">
-              <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredVendors.map((vendor) => (
-                  <Card
-                    key={vendor.id}
-                    className="overflow-hidden cursor-pointer transition-shadow hover:shadow-md"
-                    onClick={() => handleViewVendor(vendor)}
-                  >
-                    <div className="relative">
-                      <Image
-                        src={vendor.image || "/placeholder.svg"}
-                        alt={vendor.name}
-                        width={400}
-                        height={200}
-                        className="h-48 w-full object-cover"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-2 top-2 rounded-full bg-background/80 backdrop-blur-sm"
-                        onClick={(e) => toggleFavorite(e, vendor.id)}
-                      >
-                        <Heart className={`h-5 w-5 ${vendor.isFavorite ? "fill-red-500 text-red-500" : ""}`} />
-                        <span className="sr-only">Toggle favorite</span>
-                      </Button>
-                    </div>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle>{vendor.name}</CardTitle>
-                        <div className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                          {vendor.category}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="mb-4 text-sm text-muted-foreground">{vendor.description}</p>
-                      <div className="mb-4">
-                        <div className="mb-1 text-sm font-medium">Rating</div>
-                        <div className="flex">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Button
-                              key={star}
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                updateRating(vendor.id, star)
-                              }}
-                            >
-                              <Star
-                                className={`h-5 w-5 ${
-                                  star <= vendor.rating ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"
-                                }`}
-                              />
-                              <span className="sr-only">Rate {star} stars</span>
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="mb-1 text-sm font-medium">Notes</div>
-                        <p className="text-xs text-muted-foreground">{vendor.notes || "No notes yet"}</p>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex justify-between">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setSelectedVendor(vendor)
-                          setVendorNote(vendor.notes)
-                        }}
-                      >
-                        Add Note
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
-            <TabsContent value="favorites">
-              <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {favoriteVendors.length > 0 ? (
-                  favoriteVendors.map((vendor) => (
+              {filteredVendors.length > 0 ? (
+                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                  {filteredVendors.map((vendor) => (
                     <Card
                       key={vendor.id}
                       className="overflow-hidden cursor-pointer transition-shadow hover:shadow-md"
@@ -331,15 +262,15 @@ export default function VendorsPage() {
                         </Button>
                       </div>
                       <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle>{vendor.name}</CardTitle>
-                          <div className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
+                          <CardTitle className="text-xl">{vendor.name}</CardTitle>
+                          <div className="inline-flex h-6 items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary whitespace-nowrap">
                             {vendor.category}
                           </div>
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <p className="mb-4 text-sm text-muted-foreground">{vendor.description}</p>
+                        <p className="mb-4 text-sm text-muted-foreground line-clamp-2">{vendor.description}</p>
                         <div className="mb-4">
                           <div className="mb-1 text-sm font-medium">Rating</div>
                           <div className="flex">
@@ -366,7 +297,7 @@ export default function VendorsPage() {
                         </div>
                         <div>
                           <div className="mb-1 text-sm font-medium">Notes</div>
-                          <p className="text-xs text-muted-foreground">{vendor.notes || "No notes yet"}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-2">{vendor.notes || "No notes yet"}</p>
                         </div>
                       </CardContent>
                       <CardFooter className="flex justify-between">
@@ -383,23 +314,119 @@ export default function VendorsPage() {
                         </Button>
                       </CardFooter>
                     </Card>
-                  ))
-                ) : (
-                  <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
-                    <Heart className="mb-4 h-12 w-12 text-muted-foreground" />
-                    <h3 className="mb-2 text-xl font-medium">No favorite vendors yet</h3>
-                    <p className="mb-4 text-muted-foreground">
-                      Click the heart icon on any vendor card to add them to your favorites
-                    </p>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={<Search className="h-12 w-12 text-muted-foreground" />}
+                  title="No vendors found"
+                  description="Try adjusting your search or add a new vendor"
+                  action={
+                    <Button onClick={() => setShowAddVendor(true)}>
+                      <Plus className="mr-2 h-4 w-4" /> Add Vendor
+                    </Button>
+                  }
+                />
+              )}
+            </TabsContent>
+            <TabsContent value="favorites">
+              {favoriteVendors.length > 0 ? (
+                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                  {favoriteVendors.map((vendor) => (
+                    <Card
+                      key={vendor.id}
+                      className="overflow-hidden cursor-pointer transition-shadow hover:shadow-md"
+                      onClick={() => handleViewVendor(vendor)}
+                    >
+                      <div className="relative">
+                        <Image
+                          src={vendor.image || "/placeholder.svg"}
+                          alt={vendor.name}
+                          width={400}
+                          height={200}
+                          className="h-48 w-full object-cover"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-2 top-2 rounded-full bg-background/80 backdrop-blur-sm"
+                          onClick={(e) => toggleFavorite(e, vendor.id)}
+                        >
+                          <Heart className={`h-5 w-5 ${vendor.isFavorite ? "fill-red-500 text-red-500" : ""}`} />
+                          <span className="sr-only">Toggle favorite</span>
+                        </Button>
+                      </div>
+                      <CardHeader>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
+                          <CardTitle className="text-xl">{vendor.name}</CardTitle>
+                          <div className="inline-flex h-6 items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary whitespace-nowrap">
+                            {vendor.category}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="mb-4 text-sm text-muted-foreground line-clamp-2">{vendor.description}</p>
+                        <div className="mb-4">
+                          <div className="mb-1 text-sm font-medium">Rating</div>
+                          <div className="flex">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Button
+                                key={star}
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  updateRating(vendor.id, star)
+                                }}
+                              >
+                                <Star
+                                  className={`h-5 w-5 ${
+                                    star <= vendor.rating ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"
+                                  }`}
+                                />
+                                <span className="sr-only">Rate {star} stars</span>
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="mb-1 text-sm font-medium">Notes</div>
+                          <p className="text-xs text-muted-foreground line-clamp-2">{vendor.notes || "No notes yet"}</p>
+                        </div>
+                      </CardContent>
+                      <CardFooter className="flex justify-between">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedVendor(vendor)
+                            setVendorNote(vendor.notes)
+                          }}
+                        >
+                          Add Note
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={<Heart className="h-12 w-12 text-muted-foreground" />}
+                  title="No favorite vendors yet"
+                  description="Click the heart icon on any vendor card to add them to your favorites"
+                  action={
                     <Button variant="outline" onClick={() => document.querySelector('[value="all"]').click()}>
                       Browse All Vendors
                     </Button>
-                  </div>
-                )}
-              </div>
+                  }
+                />
+              )}
             </TabsContent>
           </Tabs>
 
+          {/* Add Note Dialog */}
           {selectedVendor && (
             <Dialog
               open={!!selectedVendor}
@@ -417,18 +444,23 @@ export default function VendorsPage() {
                     placeholder="Enter your notes here..."
                     value={vendorNote}
                     onChange={(e) => setVendorNote(e.target.value)}
+                    maxLength={500}
                   ></textarea>
+                  <p className="text-xs text-muted-foreground mt-1">{vendorNote.length}/500 characters</p>
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setSelectedVendor(null)}>
+                <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-0">
+                  <Button variant="outline" onClick={() => setSelectedVendor(null)} className="w-full sm:w-auto">
                     Cancel
                   </Button>
-                  <Button onClick={saveNote}>Save Note</Button>
+                  <Button onClick={saveNote} className="w-full sm:w-auto">
+                    Save Note
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
           )}
 
+          {/* View Vendor Dialog */}
           {viewingVendor && (
             <Dialog
               open={!!viewingVendor}
@@ -438,9 +470,9 @@ export default function VendorsPage() {
             >
               <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
                     <DialogTitle className="text-2xl font-bold">{viewingVendor.name}</DialogTitle>
-                    <div className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                    <div className="inline-flex h-6 items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary whitespace-nowrap">
                       {viewingVendor.category}
                     </div>
                   </div>
@@ -515,7 +547,7 @@ export default function VendorsPage() {
                       <FormItem>
                         <FormLabel>Vendor Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter vendor name" {...field} />
+                          <Input placeholder="Enter vendor name" maxLength={50} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -534,6 +566,7 @@ export default function VendorsPage() {
                               placeholder="Enter new category"
                               value={newCategory}
                               onChange={(e) => setNewCategory(e.target.value)}
+                              maxLength={30}
                               className="flex-1"
                             />
                             <Button onClick={handleAddCategory}>Add</Button>
@@ -574,7 +607,7 @@ export default function VendorsPage() {
                       <FormItem>
                         <FormLabel>Description</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter description" {...field} />
+                          <Input placeholder="Enter description" maxLength={200} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -588,14 +621,14 @@ export default function VendorsPage() {
                       <FormItem>
                         <FormLabel>Notes</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter initial notes" {...field} />
+                          <Input placeholder="Enter initial notes" maxLength={500} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 pt-4">
+                  <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-0 pt-4">
                     <Button
                       variant="outline"
                       type="button"

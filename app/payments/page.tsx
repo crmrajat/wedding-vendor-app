@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { Check, CreditCard, Plus, Save } from "lucide-react"
@@ -16,8 +16,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AppShell } from "@/components/layout/app-shell"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { DatePicker } from "@/components/ui/date-picker"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { paymentSchema } from "@/lib/validations"
+import { EmptyState } from "@/components/empty-state"
 
 // Sample payment data
 const initialPayments = [
@@ -110,10 +111,6 @@ export default function PaymentsPage() {
   const [totalPaymentsOverride, setTotalPaymentsOverride] = useState("")
   const [customTotalPayments, setCustomTotalPayments] = useState(null)
 
-  // Date states for the calendar
-  const [dueDate, setDueDate] = useState<Date | undefined>(new Date())
-  const [paymentDate, setPaymentDate] = useState<Date | undefined>(undefined)
-
   // Calculate totals
   const calculatedTotalAmount = payments.reduce((sum, payment) => sum + payment.amount, 0)
   const totalAmount = customTotalPayments !== null ? customTotalPayments : calculatedTotalAmount
@@ -152,74 +149,63 @@ export default function PaymentsPage() {
       paymentDate: "",
       paymentMethod: "",
     },
-    mode: "onChange",
+    mode: "onSubmit",
   })
 
-  // Update form values when dates change
-  const updateDueDate = (date: Date | undefined) => {
-    setDueDate(date)
-    if (date) {
-      form.setValue("dueDate", format(date, "yyyy-MM-dd"))
-    }
-  }
+  const onSubmit = useCallback(
+    (data) => {
+      const newPaymentItem = {
+        id: payments.length + 1,
+        ...data,
+        amount: Number.parseFloat(data.amount),
+        paymentDate: data.status === "Paid" ? data.paymentDate : null,
+        paymentMethod: data.status === "Paid" ? data.paymentMethod : null,
+      }
 
-  const updatePaymentDate = (date: Date | undefined) => {
-    setPaymentDate(date)
-    if (date) {
-      form.setValue("paymentDate", format(date, "yyyy-MM-dd"))
-    }
-  }
+      const newPayments = [...payments, newPaymentItem]
+      setPayments(newPayments)
+      setShowAddPayment(false)
+      form.reset({
+        vendor: "",
+        description: "",
+        amount: "",
+        dueDate: new Date().toISOString().split("T")[0],
+        status: "Pending",
+        paymentDate: "",
+        paymentMethod: "",
+      })
 
-  const onSubmit = (data) => {
-    const newPaymentItem = {
-      id: payments.length + 1,
-      ...data,
-      amount: Number.parseFloat(data.amount),
-      paymentDate: data.status === "Paid" ? data.paymentDate : null,
-      paymentMethod: data.status === "Paid" ? data.paymentMethod : null,
-    }
+      toast.success("Payment added successfully", {
+        description: `${data.description} for ${data.vendor} has been added.`,
+      })
+    },
+    [form, payments],
+  )
 
-    const newPayments = [...payments, newPaymentItem]
-    setPayments(newPayments)
-    setShowAddPayment(false)
-    form.reset({
-      vendor: "",
-      description: "",
-      amount: "",
-      dueDate: new Date().toISOString().split("T")[0],
-      status: "Pending",
-      paymentDate: "",
-      paymentMethod: "",
-    })
-    setDueDate(new Date())
-    setPaymentDate(undefined)
+  const markAsPaid = useCallback(
+    (id) => {
+      const paymentToUpdate = payments.find((p) => p.id === id)
+      const newPayments = payments.map((payment) =>
+        payment.id === id
+          ? {
+              ...payment,
+              status: "Paid",
+              paymentDate: new Date().toISOString().split("T")[0],
+              paymentMethod: "Credit Card", // Default for demo
+            }
+          : payment,
+      )
 
-    toast.success("Payment added successfully", {
-      description: `${data.description} for ${data.vendor} has been added.`,
-    })
-  }
+      setPayments(newPayments)
 
-  const markAsPaid = (id) => {
-    const paymentToUpdate = payments.find((p) => p.id === id)
-    const newPayments = payments.map((payment) =>
-      payment.id === id
-        ? {
-            ...payment,
-            status: "Paid",
-            paymentDate: new Date().toISOString().split("T")[0],
-            paymentMethod: "Credit Card", // Default for demo
-          }
-        : payment,
-    )
+      toast.success("Payment marked as paid", {
+        description: `${paymentToUpdate.description} for ${paymentToUpdate.vendor} has been marked as paid.`,
+      })
+    },
+    [payments],
+  )
 
-    setPayments(newPayments)
-
-    toast.success("Payment marked as paid", {
-      description: `${paymentToUpdate.description} for ${paymentToUpdate.vendor} has been marked as paid.`,
-    })
-  }
-
-  const updateTotalPayments = () => {
+  const updateTotalPayments = useCallback(() => {
     const newTotal = Number.parseFloat(totalPaymentsOverride)
     if (!isNaN(newTotal) && newTotal >= 0) {
       setCustomTotalPayments(newTotal)
@@ -232,15 +218,21 @@ export default function PaymentsPage() {
         description: "Please enter a valid number for the total payments.",
       })
     }
+  }, [totalPaymentsOverride])
+
+  // Format date to "1 Jan, 2025" format
+  const formatDate = (dateString) => {
+    if (!dateString) return "-"
+    return format(new Date(dateString), "d MMM, yyyy")
   }
 
   return (
     <AppShell>
       <main className="flex-1">
-        <div className="container py-8">
-          <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div className="container py-3 sm:py-4 md:py-6">
+          <div className="mb-6 sm:mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Payment Tracking</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Payment Tracking</h1>
               <p className="text-muted-foreground">Track and manage vendor payments</p>
             </div>
             <Button onClick={() => setShowAddPayment(true)} className="w-full sm:w-auto">
@@ -253,7 +245,7 @@ export default function PaymentsPage() {
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Payments</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-2 sm:pt-4">
                 <div className="text-2xl font-bold">${totalAmount.toLocaleString()}</div>
                 {customTotalPayments !== null && calculatedTotalAmount !== customTotalPayments && (
                   <p className="text-xs text-muted-foreground">Calculated: ${calculatedTotalAmount.toLocaleString()}</p>
@@ -265,7 +257,7 @@ export default function PaymentsPage() {
                 <CardTitle className="text-sm font-medium">Paid</CardTitle>
                 <Check className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-2 sm:pt-4">
                 <div className="text-2xl font-bold">${paidAmount.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">
                   {Math.round((paidAmount / totalAmount) * 100)}% of total
@@ -277,7 +269,7 @@ export default function PaymentsPage() {
                 <CardTitle className="text-sm font-medium">Pending</CardTitle>
                 <CreditCard className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-2 sm:pt-4">
                 <div className="text-2xl font-bold">${pendingAmount.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">
                   {Math.round((pendingAmount / totalAmount) * 100)}% of total
@@ -286,8 +278,8 @@ export default function PaymentsPage() {
             </Card>
           </div>
 
-          {upcomingPayments.length > 0 && (
-            <Card className="mt-8 border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950">
+          {upcomingPayments.length > 0 ? (
+            <Card className="mt-6 sm:mt-8 border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950">
               <CardHeader>
                 <CardTitle className="text-yellow-800 dark:text-yellow-300">Upcoming Payments</CardTitle>
                 <CardDescription className="text-yellow-700 dark:text-yellow-400">
@@ -295,37 +287,48 @@ export default function PaymentsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Vendor</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Due Date</TableHead>
-                      <TableHead>Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {upcomingPayments.map((payment) => (
-                      <TableRow key={payment.id}>
-                        <TableCell className="font-medium">{payment.vendor}</TableCell>
-                        <TableCell>{payment.description}</TableCell>
-                        <TableCell>${payment.amount.toLocaleString()}</TableCell>
-                        <TableCell>{new Date(payment.dueDate).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <Button size="sm" onClick={() => markAsPaid(payment.id)}>
-                            Mark as Paid
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <ScrollArea className="h-[300px]">
+                  <div className="min-w-[600px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Vendor</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Due Date</TableHead>
+                          <TableHead>Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {upcomingPayments.map((payment) => (
+                          <TableRow key={payment.id}>
+                            <TableCell className="font-medium">{payment.vendor}</TableCell>
+                            <TableCell>{payment.description}</TableCell>
+                            <TableCell>${payment.amount.toLocaleString()}</TableCell>
+                            <TableCell>{formatDate(payment.dueDate)}</TableCell>
+                            <TableCell>
+                              <Button size="sm" onClick={() => markAsPaid(payment.id)}>
+                                Mark as Paid
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
+          ) : (
+            <EmptyState
+              icon={<Check className="h-12 w-12 text-muted-foreground" />}
+              title="No upcoming payments"
+              description="You don't have any payments due in the next 30 days"
+              className="mt-6 sm:mt-8"
+            />
           )}
 
-          <Tabs defaultValue="all" className="mt-8">
+          <Tabs defaultValue="all" className="mt-6 sm:mt-8">
             <TabsList className="mb-6">
               <TabsTrigger value="all">All Payments</TabsTrigger>
               <TabsTrigger value="pending">Pending</TabsTrigger>
@@ -334,132 +337,148 @@ export default function PaymentsPage() {
             <TabsContent value="all">
               <Card>
                 <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Vendor</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Due Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Payment Date</TableHead>
-                        <TableHead>Payment Method</TableHead>
-                        <TableHead className="w-[100px]">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {payments.map((payment) => (
-                        <TableRow key={payment.id}>
-                          <TableCell className="font-medium">{payment.vendor}</TableCell>
-                          <TableCell>{payment.description}</TableCell>
-                          <TableCell>${payment.amount.toLocaleString()}</TableCell>
-                          <TableCell>{new Date(payment.dueDate).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                payment.status === "Paid"
-                                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                                  : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
-                              }`}
-                            >
-                              {payment.status}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            {payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : "-"}
-                          </TableCell>
-                          <TableCell>{payment.paymentMethod || "-"}</TableCell>
-                          <TableCell>
-                            {payment.status === "Pending" && (
-                              <Button size="sm" onClick={() => markAsPaid(payment.id)}>
-                                Mark as Paid
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <ScrollArea className="h-[500px]">
+                    <div className="min-w-[800px]">
+                      <Table className="w-full">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[150px]">Vendor</TableHead>
+                            <TableHead className="w-[200px]">Description</TableHead>
+                            <TableHead className="w-[100px]">Amount</TableHead>
+                            <TableHead className="w-[120px]">Due Date</TableHead>
+                            <TableHead className="w-[100px]">Status</TableHead>
+                            <TableHead className="w-[120px]">Payment Date</TableHead>
+                            <TableHead className="w-[120px]">Method</TableHead>
+                            <TableHead className="w-[100px] text-right">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {payments.length > 0 ? (
+                            payments.map((payment) => (
+                              <TableRow key={payment.id}>
+                                <TableCell className="font-medium py-2 px-2 sm:px-4">{payment.vendor}</TableCell>
+                                <TableCell className="py-2 px-2 sm:px-4">{payment.description}</TableCell>
+                                <TableCell className="py-2 px-2 sm:px-4">${payment.amount.toLocaleString()}</TableCell>
+                                <TableCell className="py-2 px-2 sm:px-4">{formatDate(payment.dueDate)}</TableCell>
+                                <TableCell className="py-2 px-2 sm:px-4">
+                                  <span
+                                    className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                                      payment.status === "Paid"
+                                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                                        : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+                                    }`}
+                                  >
+                                    {payment.status}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="py-2 px-2 sm:px-4">{formatDate(payment.paymentDate)}</TableCell>
+                                <TableCell className="py-2 px-2 sm:px-4">{payment.paymentMethod || "-"}</TableCell>
+                                <TableCell className="py-2 px-2 sm:px-4 text-right">
+                                  {payment.status === "Pending" && (
+                                    <Button size="sm" onClick={() => markAsPaid(payment.id)}>
+                                      Mark as Paid
+                                    </Button>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={8} className="h-24 text-center">
+                                No payments found
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </ScrollArea>
                 </CardContent>
               </Card>
             </TabsContent>
             <TabsContent value="pending">
               <Card>
                 <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Vendor</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Due Date</TableHead>
-                        <TableHead className="w-[100px]">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pendingPayments.length > 0 ? (
-                        sortedPendingPayments.map((payment) => (
-                          <TableRow key={payment.id}>
-                            <TableCell className="font-medium">{payment.vendor}</TableCell>
-                            <TableCell>{payment.description}</TableCell>
-                            <TableCell>${payment.amount.toLocaleString()}</TableCell>
-                            <TableCell>{new Date(payment.dueDate).toLocaleDateString()}</TableCell>
-                            <TableCell>
-                              <Button size="sm" onClick={() => markAsPaid(payment.id)}>
-                                Mark as Paid
-                              </Button>
-                            </TableCell>
+                  <ScrollArea className="h-[500px]">
+                    <div className="min-w-[600px]">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[150px]">Vendor</TableHead>
+                            <TableHead className="w-[200px]">Description</TableHead>
+                            <TableHead className="w-[100px]">Amount</TableHead>
+                            <TableHead className="w-[120px]">Due Date</TableHead>
+                            <TableHead className="w-[100px] text-right">Action</TableHead>
                           </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={5} className="h-24 text-center">
-                            No pending payments
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {pendingPayments.length > 0 ? (
+                            sortedPendingPayments.map((payment) => (
+                              <TableRow key={payment.id}>
+                                <TableCell className="font-medium py-2 px-2 sm:px-4">{payment.vendor}</TableCell>
+                                <TableCell className="py-2 px-2 sm:px-4">{payment.description}</TableCell>
+                                <TableCell className="py-2 px-2 sm:px-4">${payment.amount.toLocaleString()}</TableCell>
+                                <TableCell className="py-2 px-2 sm:px-4">{formatDate(payment.dueDate)}</TableCell>
+                                <TableCell className="py-2 px-2 sm:px-4 text-right">
+                                  <Button size="sm" onClick={() => markAsPaid(payment.id)}>
+                                    Mark as Paid
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={5} className="h-24 text-center">
+                                No pending payments
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </ScrollArea>
                 </CardContent>
               </Card>
             </TabsContent>
             <TabsContent value="paid">
               <Card>
                 <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Vendor</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Due Date</TableHead>
-                        <TableHead>Payment Date</TableHead>
-                        <TableHead>Payment Method</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paidPayments.length > 0 ? (
-                        paidPayments.map((payment) => (
-                          <TableRow key={payment.id}>
-                            <TableCell className="font-medium">{payment.vendor}</TableCell>
-                            <TableCell>{payment.description}</TableCell>
-                            <TableCell>${payment.amount.toLocaleString()}</TableCell>
-                            <TableCell>{new Date(payment.dueDate).toLocaleDateString()}</TableCell>
-                            <TableCell>
-                              {payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : "-"}
-                            </TableCell>
-                            <TableCell>{payment.paymentMethod}</TableCell>
+                  <ScrollArea className="h-[500px]">
+                    <div className="min-w-[700px]">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[150px]">Vendor</TableHead>
+                            <TableHead className="w-[200px]">Description</TableHead>
+                            <TableHead className="w-[100px]">Amount</TableHead>
+                            <TableHead className="w-[120px]">Due Date</TableHead>
+                            <TableHead className="w-[120px]">Payment Date</TableHead>
+                            <TableHead>Payment Method</TableHead>
                           </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={6} className="h-24 text-center">
-                            No paid payments
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {paidPayments.length > 0 ? (
+                            paidPayments.map((payment) => (
+                              <TableRow key={payment.id}>
+                                <TableCell className="font-medium py-2 px-2 sm:px-4">{payment.vendor}</TableCell>
+                                <TableCell className="py-2 px-2 sm:px-4">{payment.description}</TableCell>
+                                <TableCell className="py-2 px-2 sm:px-4">${payment.amount.toLocaleString()}</TableCell>
+                                <TableCell className="py-2 px-2 sm:px-4">{formatDate(payment.dueDate)}</TableCell>
+                                <TableCell className="py-2 px-2 sm:px-4">{formatDate(payment.paymentDate)}</TableCell>
+                                <TableCell className="py-2 px-2 sm:px-4">{payment.paymentMethod}</TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={6} className="h-24 text-center">
+                                No paid payments
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </ScrollArea>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -500,7 +519,7 @@ export default function PaymentsPage() {
                   </p>
                 </div>
               </div>
-              <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+              <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-0">
                 <Button
                   variant="outline"
                   className="w-full sm:w-auto"
@@ -533,8 +552,6 @@ export default function PaymentsPage() {
                   paymentDate: "",
                   paymentMethod: "",
                 })
-                setDueDate(new Date())
-                setPaymentDate(undefined)
               }
             }}
           >
@@ -551,7 +568,7 @@ export default function PaymentsPage() {
                       <FormItem>
                         <FormLabel>Vendor</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter vendor name" {...field} />
+                          <Input placeholder="Enter vendor name" maxLength={50} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -565,7 +582,7 @@ export default function PaymentsPage() {
                       <FormItem>
                         <FormLabel>Description</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter description" {...field} />
+                          <Input placeholder="Enter description" maxLength={100} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -590,9 +607,11 @@ export default function PaymentsPage() {
                     control={form.control}
                     name="dueDate"
                     render={({ field }) => (
-                      <FormItem className="flex flex-col">
+                      <FormItem>
                         <FormLabel>Due Date</FormLabel>
-                        <DatePicker date={dueDate} setDate={updateDueDate} placeholder="Select due date" />
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -626,13 +645,11 @@ export default function PaymentsPage() {
                         control={form.control}
                         name="paymentDate"
                         render={({ field }) => (
-                          <FormItem className="flex flex-col">
+                          <FormItem>
                             <FormLabel>Payment Date</FormLabel>
-                            <DatePicker
-                              date={paymentDate}
-                              setDate={updatePaymentDate}
-                              placeholder="Select payment date"
-                            />
+                            <FormControl>
+                              <Input type="date" {...field} />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -665,7 +682,7 @@ export default function PaymentsPage() {
                     </>
                   )}
 
-                  <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 pt-4">
+                  <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-0 pt-4">
                     <Button
                       variant="outline"
                       type="button"
@@ -673,8 +690,6 @@ export default function PaymentsPage() {
                       onClick={() => {
                         setShowAddPayment(false)
                         form.reset()
-                        setDueDate(new Date())
-                        setPaymentDate(undefined)
                       }}
                     >
                       Cancel

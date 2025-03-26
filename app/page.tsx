@@ -100,9 +100,15 @@ export default function Home() {
     }
   }
 
+  // Format date to DD/MM/YYYY
+  const formatDate = (dateString) => {
+    const date = new Date(dateString)
+    return `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getFullYear()}`
+  }
+
   return (
     <AppShell>
-      <section className="py-12 px-4 sm:px-6 lg:px-8">
+      <section className="py-2 sm:py-4 md:py-6 px-0 sm:px-2 md:px-4">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -152,138 +158,72 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="py-6 px-4 sm:px-6 lg:px-8">
-        <Card className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Bell className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                <CardTitle className="text-amber-800 dark:text-amber-300">
-                  {todayReminders.length > 0 ? "Today's Reminders" : "Upcoming Reminders"}
-                </CardTitle>
-              </div>
-              <div className="rounded-full bg-amber-200 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-800 dark:text-amber-200">
-                {reminders.length} total
-              </div>
+      <section className="py-2 sm:py-4 px-0 sm:px-2 md:px-4">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 sm:p-6 dark:bg-amber-950 dark:border-amber-900">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <h2 className="text-xl font-semibold text-amber-800 dark:text-amber-300">Today's Reminders</h2>
             </div>
-            <CardDescription className="text-amber-700 dark:text-amber-400">
-              {todayReminders.length > 0
-                ? `You have ${todayReminders.length} tasks for today`
-                : "Important dates and deadlines for your wedding planning"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[250px]">
+            <div className="bg-amber-200 text-amber-800 dark:bg-amber-800 dark:text-amber-200 px-3 py-1 rounded-full text-xs font-medium">
+              {reminders.length} total
+            </div>
+          </div>
+
+          <p className="text-amber-700 dark:text-amber-400 mb-6">You have {todayReminders.length} tasks for today</p>
+
+          <ScrollArea className="h-[350px] pr-4">
+            <div className="space-y-4">
               {reminders.length > 0 ? (
-                <div className="space-y-3 pr-4">
-                  {/* Show today's reminders first if any */}
-                  {todayReminders.length > 0 && (
-                    <>
-                      <div className="mb-2 font-medium text-amber-800 dark:text-amber-300">Today</div>
-                      {todayReminders.map((reminder) => (
-                        <div
-                          key={reminder.id}
-                          className="flex items-start gap-3 rounded-md bg-amber-100 p-3 dark:bg-amber-900/50 group"
-                        >
+                <>
+                  {sortedReminders.map((reminder) => (
+                    <div key={reminder.id} className="bg-amber-100 dark:bg-amber-900/50 rounded-lg overflow-hidden">
+                      <div className="p-4">
+                        <div className="flex items-start gap-3 mb-2">
                           {reminder.type === "payment" ? (
-                            <CreditCard className="mt-0.5 h-5 w-5 text-amber-600 dark:text-amber-400" />
+                            <CreditCard className="h-5 w-5 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                           ) : (
-                            <Calendar className="mt-0.5 h-5 w-5 text-amber-600 dark:text-amber-400" />
+                            <Calendar className="h-5 w-5 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                           )}
-                          <div className="flex-1">
-                            <p className="font-medium text-amber-800 dark:text-amber-300">{reminder.title}</p>
-                            <div className="flex flex-wrap items-center gap-x-2 text-sm">
-                              <span className="text-amber-700 dark:text-amber-400">{reminder.vendor}</span>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Link href={reminder.type === "payment" ? "/payments" : "/contracts"}>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="border-amber-300 bg-amber-200 text-amber-800 hover:bg-amber-300 dark:border-amber-700 dark:bg-amber-800 dark:text-amber-200 dark:hover:bg-amber-700"
-                              >
-                                View
-                              </Button>
-                            </Link>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-amber-700 hover:bg-amber-200 hover:text-amber-900 dark:text-amber-400 dark:hover:bg-amber-900 dark:hover:text-amber-200"
-                              onClick={() => removeReminder(reminder.id)}
-                            >
-                              <X className="h-4 w-4" />
-                              <span className="sr-only">Remove</span>
-                            </Button>
-                          </div>
+                          <h3 className="text-amber-800 dark:text-amber-300 font-medium">{reminder.title}</h3>
                         </div>
-                      ))}
-
-                      {/* Show upcoming header if there are other reminders */}
-                      {sortedReminders.filter((r) => r.date !== formattedToday).length > 0 && (
-                        <div className="mb-2 mt-4 font-medium text-amber-800 dark:text-amber-300">Upcoming</div>
-                      )}
-                    </>
-                  )}
-
-                  {/* Show other reminders */}
-                  {sortedReminders
-                    .filter((reminder) => reminder.date !== formattedToday)
-                    .map((reminder) => (
-                      <div
-                        key={reminder.id}
-                        className="flex items-start gap-3 rounded-md bg-amber-100 p-3 dark:bg-amber-900/50 group"
-                      >
-                        {reminder.type === "payment" ? (
-                          <CreditCard className="mt-0.5 h-5 w-5 text-amber-600 dark:text-amber-400" />
-                        ) : (
-                          <Calendar className="mt-0.5 h-5 w-5 text-amber-600 dark:text-amber-400" />
-                        )}
-                        <div className="flex-1">
-                          <p className="font-medium text-amber-800 dark:text-amber-300">{reminder.title}</p>
-                          <div className="flex flex-wrap items-center gap-x-2 text-sm">
-                            <span className="text-amber-700 dark:text-amber-400">{reminder.vendor}</span>
-                            <span className="text-amber-600 dark:text-amber-500">•</span>
-                            <span className="text-amber-700 dark:text-amber-400">
-                              {new Date(reminder.date).toISOString().split("T")[0].split("-").reverse().join("/")}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Link href={reminder.type === "payment" ? "/payments" : "/contracts"}>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-amber-300 bg-amber-200 text-amber-800 hover:bg-amber-300 dark:border-amber-700 dark:bg-amber-800 dark:text-amber-200 dark:hover:bg-amber-700"
-                            >
-                              View
-                            </Button>
-                          </Link>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-amber-700 hover:bg-amber-200 hover:text-amber-900 dark:text-amber-400 dark:hover:bg-amber-900 dark:hover:text-amber-200"
-                            onClick={() => removeReminder(reminder.id)}
-                          >
-                            <X className="h-4 w-4" />
-                            <span className="sr-only">Remove</span>
-                          </Button>
+                        <div className="flex flex-col sm:flex-row text-sm text-amber-700 dark:text-amber-400 ml-8">
+                          <span>{reminder.vendor}</span>
+                          <span className="hidden sm:inline mx-2">•</span>
+                          <span className="mt-1 sm:mt-0">{formatDate(reminder.date)}</span>
                         </div>
                       </div>
-                    ))}
-                </div>
+
+                      <div className="flex mt-2">
+                        <Link href={reminder.type === "payment" ? "/payments" : "/contracts"} className="flex-1">
+                          <button className="w-full py-2 bg-amber-200 hover:bg-amber-300 text-amber-800 transition-colors dark:bg-amber-800 dark:text-amber-200 dark:hover:bg-amber-700 text-center">
+                            View
+                          </button>
+                        </Link>
+                        <button
+                          onClick={() => removeReminder(reminder.id)}
+                          className="py-2 px-4 bg-amber-200 hover:bg-amber-300 text-amber-800 transition-colors dark:bg-amber-800 dark:text-amber-200 dark:hover:bg-amber-700 border-l border-amber-300 dark:border-amber-700"
+                        >
+                          <X className="h-4 w-4" />
+                          <span className="sr-only">Remove</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </>
               ) : (
                 <EmptyState
                   icon={<CheckCircle2 className="h-8 w-8 text-amber-600 dark:text-amber-400" />}
                   title="All caught up!"
+                  description="You have no reminders for today"
                 />
               )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
+            </div>
+          </ScrollArea>
+        </div>
       </section>
 
-      <section className="py-6 px-4 sm:px-6 lg:px-8">
+      <section className="py-2 sm:py-4 px-0 sm:px-2 md:px-4">
         <h2 className="mb-6 text-2xl font-bold tracking-tight">Quick Actions</h2>
         <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Link href="/vendors">

@@ -5,11 +5,12 @@ import Image from "next/image"
 import { MessageSquare, Send } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AppShell } from "@/components/layout/app-shell"
+import { EmptyState } from "@/components/empty-state"
 
 // Sample vendor data
 const initialVendors = [
@@ -144,7 +145,6 @@ export default function CommunicationPage() {
   const filteredVendors = vendors.filter(
     (vendor) =>
       vendor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vendor.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vendor.category.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
@@ -169,7 +169,7 @@ export default function CommunicationPage() {
   return (
     <AppShell>
       <main className="flex-1">
-        <div className="container px-4 py-6 md:py-8">
+        <div className="container px-2 sm:px-4 py-3 sm:py-4 md:py-6">
           <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
               <h1 className="text-3xl font-bold">Vendor Communication</h1>
@@ -232,15 +232,12 @@ export default function CommunicationPage() {
                   </ScrollArea>
                 </TabsContent>
                 <TabsContent value="unread" className="mt-4">
-                  <div className="flex h-[calc(100vh-300px)] items-center justify-center text-center">
-                    <div>
-                      <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground" />
-                      <h3 className="mt-4 text-lg font-medium">No unread messages</h3>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        When you have unread messages, they'll appear here
-                      </p>
-                    </div>
-                  </div>
+                  <EmptyState
+                    icon={<MessageSquare className="h-12 w-12 text-muted-foreground" />}
+                    title="No unread messages"
+                    description="When you have unread messages, they'll appear here"
+                    className="h-[calc(100vh-300px)]"
+                  />
                 </TabsContent>
               </Tabs>
             </div>
@@ -258,7 +255,7 @@ export default function CommunicationPage() {
             <Card>
               {selectedVendor ? (
                 <>
-                  <CardHeader className="border-b">
+                  <CardHeader className="border-b p-2 sm:p-4">
                     <div className="flex items-center gap-3">
                       <Image
                         src={selectedVendor.image || "/placeholder.svg"}
@@ -269,12 +266,12 @@ export default function CommunicationPage() {
                       />
                       <div>
                         <CardTitle>{selectedVendor.name}</CardTitle>
-                        <CardDescription>{selectedVendor.category}</CardDescription>
+                        <p className="text-sm text-muted-foreground">{selectedVendor.category}</p>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
-                    <ScrollArea className="h-[calc(100vh-350px)] md:h-[calc(100vh-400px)] p-4">
+                    <ScrollArea className="h-[calc(100vh-350px)] md:h-[calc(100vh-400px)] p-2 sm:p-4">
                       <div className="space-y-4">
                         {messages[selectedVendor.id] ? (
                           messages[selectedVendor.id].map((message) => (
@@ -295,15 +292,11 @@ export default function CommunicationPage() {
                             </div>
                           ))
                         ) : (
-                          <div className="flex h-full items-center justify-center text-center">
-                            <div>
-                              <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground" />
-                              <h3 className="mt-4 text-lg font-medium">No messages yet</h3>
-                              <p className="mt-2 text-sm text-muted-foreground">
-                                Start a conversation with {selectedVendor.name}
-                              </p>
-                            </div>
-                          </div>
+                          <EmptyState
+                            icon={<MessageSquare className="h-12 w-12 text-muted-foreground" />}
+                            title="No messages yet"
+                            description={`Start a conversation with ${selectedVendor.name}`}
+                          />
                         )}
                       </div>
                     </ScrollArea>
@@ -319,6 +312,7 @@ export default function CommunicationPage() {
                             }
                           }}
                           className="flex-1"
+                          maxLength={500}
                           aria-label={`Type a message to ${selectedVendor.name}`}
                         />
                         <Button size="icon" onClick={handleSendMessage} className="shrink-0" aria-label="Send message">
@@ -330,15 +324,12 @@ export default function CommunicationPage() {
                   </CardContent>
                 </>
               ) : (
-                <div className="flex h-[calc(100vh-280px)] md:h-[calc(100vh-200px)] items-center justify-center text-center">
-                  <div>
-                    <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-4 text-lg font-medium">No conversation selected</h3>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Select a vendor from the list to view your conversation
-                    </p>
-                  </div>
-                </div>
+                <EmptyState
+                  icon={<MessageSquare className="h-12 w-12 text-muted-foreground" />}
+                  title="No conversation selected"
+                  description="Select a vendor from the list to view your conversation"
+                  className="h-[calc(100vh-280px)] md:h-[calc(100vh-200px)] p-6"
+                />
               )}
             </Card>
           </div>

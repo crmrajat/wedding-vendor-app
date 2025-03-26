@@ -5,7 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { FileText, Plus, Upload } from "lucide-react"
 import { toast } from "sonner"
-import { format } from "date-fns"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,8 +16,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { AppShell } from "@/components/layout/app-shell"
-import { DatePicker } from "@/components/ui/date-picker"
 import { contractSchema, appointmentSchema } from "@/lib/validations"
+import { FormDatePicker } from "@/components/form/date-picker"
+
+// Import the date formatting utility
+import { formatDisplayDate } from "@/lib/date-utils"
 
 // Sample contract data
 const initialContracts = [
@@ -139,25 +141,6 @@ export default function ContractsPage() {
     mode: "onChange",
   })
 
-  // Update form values when dates change
-  useEffect(() => {
-    if (signedDate) {
-      contractForm.setValue("signedDate", format(signedDate, "yyyy-MM-dd"))
-    }
-  }, [signedDate, contractForm])
-
-  useEffect(() => {
-    if (expirationDate) {
-      contractForm.setValue("expirationDate", format(expirationDate, "yyyy-MM-dd"))
-    }
-  }, [expirationDate, contractForm])
-
-  useEffect(() => {
-    if (appointmentDate) {
-      appointmentForm.setValue("date", format(appointmentDate, "yyyy-MM-dd"))
-    }
-  }, [appointmentDate, appointmentForm])
-
   // Reset form submitted state when dialog closes
   useEffect(() => {
     if (!showAddContract) {
@@ -247,7 +230,7 @@ export default function ContractsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-8">
+      <div className="space-y-4 sm:space-y-6 md:space-y-8">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Contract Management</h1>
@@ -258,7 +241,7 @@ export default function ContractsPage() {
         <div className="grid gap-6 md:grid-cols-2">
           {expiringContracts.length > 0 && (
             <Card className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-2 sm:pb-3">
                 <CardTitle className="text-amber-800 dark:text-amber-300">Contract Expiration Reminders</CardTitle>
                 <CardDescription className="text-amber-700 dark:text-amber-400">
                   The following contracts are expiring in the next 30 days
@@ -271,7 +254,7 @@ export default function ContractsPage() {
                       <li key={contract.id} className="rounded-md bg-amber-100 p-3 dark:bg-amber-900">
                         <div className="font-medium text-amber-800 dark:text-amber-300">{contract.vendor}</div>
                         <div className="text-sm text-amber-700 dark:text-amber-400">
-                          Expires on {new Date(contract.expirationDate).toLocaleDateString()}
+                          Expires on {formatDisplayDate(contract.expirationDate)}
                         </div>
                       </li>
                     ))}
@@ -294,7 +277,7 @@ export default function ContractsPage() {
                       <li key={appointment.id} className="rounded-md bg-muted p-3">
                         <div className="font-medium">{appointment.vendor}</div>
                         <div className="text-sm text-muted-foreground">
-                          {new Date(appointment.date).toLocaleDateString()} at {appointment.time}
+                          {formatDisplayDate(appointment.date)} at {appointment.time}
                         </div>
                         <div className="text-sm">{appointment.type}</div>
                       </li>
@@ -332,36 +315,40 @@ export default function ContractsPage() {
               </Button>
             </div>
             <Card>
-              <CardContent className="p-0 overflow-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Vendor</TableHead>
-                      <TableHead className="hidden md:table-cell">Type</TableHead>
-                      <TableHead className="hidden md:table-cell">Signed Date</TableHead>
-                      <TableHead>Expiration Date</TableHead>
-                      <TableHead>Document</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {contracts.map((contract) => (
-                      <TableRow key={contract.id}>
-                        <TableCell className="font-medium">{contract.vendor}</TableCell>
-                        <TableCell className="hidden md:table-cell">{contract.type}</TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          {new Date(contract.signedDate).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>{new Date(contract.expirationDate).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="sm" className="gap-1">
-                            <FileText className="h-4 w-4" />
-                            <span className="hidden sm:inline">{contract.fileName}</span>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <CardContent className="p-0">
+                <ScrollArea className="h-[500px]">
+                  <div className="min-w-[800px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Vendor</TableHead>
+                          <TableHead className="hidden md:table-cell">Type</TableHead>
+                          <TableHead className="hidden md:table-cell">Signed Date</TableHead>
+                          <TableHead>Expiration Date</TableHead>
+                          <TableHead>Document</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {contracts.map((contract) => (
+                          <TableRow key={contract.id}>
+                            <TableCell className="font-medium">{contract.vendor}</TableCell>
+                            <TableCell className="hidden md:table-cell">{contract.type}</TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              {formatDisplayDate(contract.signedDate)}
+                            </TableCell>
+                            <TableCell>{formatDisplayDate(contract.expirationDate)}</TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="sm" className="gap-1">
+                                <FileText className="h-4 w-4" />
+                                <span className="hidden sm:inline">{contract.fileName}</span>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
           </TabsContent>
@@ -372,31 +359,35 @@ export default function ContractsPage() {
               </Button>
             </div>
             <Card>
-              <CardContent className="p-0 overflow-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Vendor</TableHead>
-                      <TableHead className="hidden md:table-cell">Type</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Time</TableHead>
-                      <TableHead className="hidden md:table-cell">Notes</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedAppointments.map((appointment) => (
-                      <TableRow key={appointment.id}>
-                        <TableCell className="font-medium">{appointment.vendor}</TableCell>
-                        <TableCell className="hidden md:table-cell">{appointment.type}</TableCell>
-                        <TableCell>{new Date(appointment.date).toLocaleDateString()}</TableCell>
-                        <TableCell>{appointment.time}</TableCell>
-                        <TableCell className="hidden md:table-cell max-w-[200px] truncate">
-                          {appointment.notes}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <CardContent className="p-0">
+                <ScrollArea className="h-[500px]">
+                  <div className="min-w-[700px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Vendor</TableHead>
+                          <TableHead className="hidden md:table-cell">Type</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Time</TableHead>
+                          <TableHead className="hidden md:table-cell">Notes</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sortedAppointments.map((appointment) => (
+                          <TableRow key={appointment.id}>
+                            <TableCell className="font-medium">{appointment.vendor}</TableCell>
+                            <TableCell className="hidden md:table-cell">{appointment.type}</TableCell>
+                            <TableCell>{formatDisplayDate(appointment.date)}</TableCell>
+                            <TableCell>{appointment.time}</TableCell>
+                            <TableCell className="hidden md:table-cell max-w-[200px] truncate">
+                              {appointment.notes}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
           </TabsContent>
@@ -470,32 +461,18 @@ export default function ContractsPage() {
                   )}
                 />
 
-                <FormField
-                  control={contractForm.control}
+                <FormDatePicker
                   name="signedDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Signed Date</FormLabel>
-                      <DatePicker date={signedDate} setDate={setSignedDate} placeholder="Select signed date" />
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  control={contractForm.control}
+                  label="Signed Date"
+                  placeholder="Select signed date"
                 />
 
-                <FormField
-                  control={contractForm.control}
+                <FormDatePicker
                   name="expirationDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Expiration Date</FormLabel>
-                      <DatePicker
-                        date={expirationDate}
-                        setDate={setExpirationDate}
-                        placeholder="Select expiration date"
-                      />
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  control={contractForm.control}
+                  label="Expiration Date"
+                  placeholder="Select expiration date"
                 />
 
                 <FormField
@@ -627,20 +604,11 @@ export default function ContractsPage() {
                   )}
                 />
 
-                <FormField
-                  control={appointmentForm.control}
+                <FormDatePicker
                   name="date"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Date</FormLabel>
-                      <DatePicker
-                        date={appointmentDate}
-                        setDate={setAppointmentDate}
-                        placeholder="Select appointment date"
-                      />
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  control={appointmentForm.control}
+                  label="Date"
+                  placeholder="Select appointment date"
                 />
 
                 <FormField
