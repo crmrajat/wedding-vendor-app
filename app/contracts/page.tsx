@@ -18,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { AppShell } from "@/components/layout/app-shell"
 import { contractSchema, appointmentSchema } from "@/lib/validations"
 import { FormDatePicker } from "@/components/form/date-picker"
+import { FormDateTimePicker } from "@/components/form/date-time-picker"
 
 // Import the date formatting utility
 import { formatDisplayDate } from "@/lib/date-utils"
@@ -134,7 +135,7 @@ export default function ContractsPage() {
     defaultValues: {
       vendor: "",
       type: "",
-      date: new Date().toISOString().split("T")[0],
+      date: new Date().toISOString(),
       time: "10:00",
       notes: "",
     },
@@ -197,7 +198,7 @@ export default function ContractsPage() {
     appointmentForm.reset({
       vendor: "",
       type: "",
-      date: new Date().toISOString().split("T")[0],
+      date: new Date().toISOString(),
       time: "10:00",
       notes: "",
     })
@@ -549,7 +550,7 @@ export default function ContractsPage() {
               appointmentForm.reset({
                 vendor: "",
                 type: "",
-                date: new Date().toISOString().split("T")[0],
+                date: new Date().toISOString(),
                 time: "10:00",
                 notes: "",
               })
@@ -604,25 +605,12 @@ export default function ContractsPage() {
                   )}
                 />
 
-                <FormDatePicker
+                <FormDateTimePicker
                   name="date"
                   control={appointmentForm.control}
                   label="Date"
                   placeholder="Select appointment date"
-                />
-
-                <FormField
-                  control={appointmentForm.control}
-                  name="time"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Time</FormLabel>
-                      <FormControl>
-                        <Input type="time" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  showTimePicker={true}
                 />
 
                 <FormField

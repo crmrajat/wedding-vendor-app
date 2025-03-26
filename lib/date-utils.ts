@@ -30,3 +30,26 @@ export function formatShortDate(dateString: string): string {
   }
 }
 
+// Add a function to safely parse dates to avoid hydration mismatches
+export function safeParseDate(dateString: string | Date | null | undefined): Date {
+  if (!dateString) return new Date()
+
+  try {
+    // If it's already a Date object
+    if (dateString instanceof Date) return dateString
+
+    // If it's an ISO string
+    if (typeof dateString === "string") {
+      const date = new Date(dateString)
+      // Check if valid date
+      if (isNaN(date.getTime())) return new Date()
+      return date
+    }
+
+    return new Date()
+  } catch (error) {
+    console.error("Error parsing date:", error)
+    return new Date()
+  }
+}
+
